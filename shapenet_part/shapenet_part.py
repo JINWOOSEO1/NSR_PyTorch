@@ -65,11 +65,12 @@ def get_render_imgs(render_file, render_num = 3):
         image_list.append(image)
     return image_list
 
-def get_features(images, latent, extract_t, cfg_s = 2.5):
+def get_features(images, latent, extract_t, noise_d = 1, cfg_s = 2.5):
     features = pipeline.run_latent_single_step(
         latent=latent,
         images=images,
         extract_time=extract_t,
+        noise_d=noise_d,
         sparse_structure_sampler_params={
             "steps": coarse_total_steps,
             "cfg_strength": cfg_s,
@@ -107,6 +108,7 @@ source_occupy_voxels = source_occupy_voxels // 4
 # best extract_t and extract_l for ShapeNetCorev2
 extract_t = 11
 extract_l = 9
+noise_d = 1
 cfg_s = 2.5
 
 if not extract_t is None:
@@ -142,7 +144,7 @@ for extract_t in extract_t_arr:
         source_features = np.load(os.path.join(output_root_path, 'source', str(extract_t) + '.npy'), allow_pickle=True)
         source_features = [th.tensor(f) for f in source_features]
     else:
-        source_features = get_features(source_images, source_latent, extract_t = int(extract_t), cfg_s = cfg_s)
+        source_features = get_features(source_images, source_latent, extract_t = int(extract_t), noise_d=noise_d, cfg_s = cfg_s)
 
     if saving_features and not os.path.exists(os.path.join(output_root_path, 'source', str(extract_t) + '.npy')):
         save_features_to_numpy(source_features, output_dir=os.path.join(output_root_path, 'source'), name=str(extract_t) + '.npy')
@@ -178,7 +180,7 @@ for extract_t in extract_t_arr:
             target_features = np.load(os.path.join(target_output_path, str(extract_t) + '.npy'), allow_pickle=True)
             target_features = [th.tensor(f) for f in target_features]
         else:
-            target_features = get_features(target_images, target_latent, extract_t = extract_t, cfg_s = cfg_s)
+            target_features = get_features(target_images, target_latent, extract_t = extract_t, noise_d=noise_d, cfg_s = cfg_s)
 
         if saving_features and not os.path.exists(os.path.join(target_output_path, str(extract_t) + '.npy')):
             os.makedirs(target_output_path, exist_ok=True)

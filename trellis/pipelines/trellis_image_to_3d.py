@@ -199,6 +199,7 @@ class TrellisImageTo3DPipeline(Pipeline):
         cond: dict,
         num_samples: int = 1,
         sample_time = 1,
+        noise_d = 0.0,
         sampler_params: dict = {},
     ) -> torch.Tensor:
         """
@@ -210,7 +211,7 @@ class TrellisImageTo3DPipeline(Pipeline):
         total_extract_features = None
         reso = flow_model.resolution
 
-        noise_time = 0.0  # when mapping topology changes greatly, add more noise; otherwise, keep it low 
+        noise_time = noise_d  # when mapping topology changes greatly, add more noise; otherwise, keep it low 
         for i in range(sample_time):
             noise = torch.randn(num_samples, flow_model.in_channels, reso, reso, reso).to(self.device)
             noise = noise * (noise_time / total_steps) + (1 - (noise_time / total_steps)) * latent
@@ -388,6 +389,7 @@ class TrellisImageTo3DPipeline(Pipeline):
         extract_time:0,
         num_samples: int = 1,
         sample_time: int = 1,
+        noise_d = 0.0,
         sparse_structure_sampler_params: dict = {},
     ) -> dict:
         if len(images) > 1:
@@ -403,7 +405,7 @@ class TrellisImageTo3DPipeline(Pipeline):
                 'cond' : cond['cond'][i:i+1],
                 'neg_cond' : cond['neg_cond']
             }
-            current_features = self.sample_sparse_structure_single_step(latent, extract_time, cond_indice, num_samples, sample_time, sparse_structure_sampler_params)
+            current_features = self.sample_sparse_structure_single_step(latent, extract_time, cond_indice, num_samples, sample_time, noise_d, sparse_structure_sampler_params)
             if total_extract_features is None:
                 total_extract_features = current_features
             else:

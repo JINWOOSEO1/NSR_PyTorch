@@ -15,9 +15,10 @@ test_file = './objaverse_cor/test_file.json'
 test_id =  0
 
 # best extract_t and extract_l for ShapeNetCorev2
-# adjust noise added strength in ./trellis/pipelines/trellis_image_to_3d.py L213 for greatly/slightly topology changes
+# adjust noise added strength by parameter noise_d for greatly/slightly topology changes
 extract_t = 11
 extract_l = 9
+noise_d = 1 # (0-12)
 
 with open(test_file, 'r') as f:
     test_params = json.load(f)[test_id]
@@ -61,11 +62,12 @@ def get_render_imgs(render_file, render_num = 3):
         image_list.append(image)
     return image_list
 
-def get_features(images, latent, extract_t, cfg_s = 2.5):
+def get_features(images, latent, extract_t, noise_d = 1, cfg_s = 2.5):
     features = pipeline.run_latent_single_step(
         latent=latent,
         images=images,
         extract_time=extract_t,
+        noise_d=noise_d,
         sparse_structure_sampler_params={
             "steps": coarse_total_steps,
             "cfg_strength": cfg_s,
@@ -123,7 +125,7 @@ for extract_t in extract_t_arr:
         source_features = np.load(os.path.join(output_root_path, 'source', str(extract_t) + '.npy'), allow_pickle=True)
         source_features = [th.tensor(f) for f in source_features]
     else:
-        source_features = get_features(source_images, source_latent, extract_t = int(extract_t))
+        source_features = get_features(source_images, source_latent, extract_t = int(extract_t), noise_d=noise_d)
     if saving_features and not os.path.exists(os.path.join(output_root_path, 'source', str(extract_t) + '.npy')):
         save_features_to_numpy(source_features, output_dir=os.path.join(output_root_path, 'source'), name=str(extract_t) + '.npy')
 
@@ -151,7 +153,7 @@ for extract_t in extract_t_arr:
             target_features = np.load(os.path.join(target_output_path, str(extract_t) + '.npy'), allow_pickle=True)
             target_features = [th.tensor(f) for f in target_features]
         else:
-            target_features = get_features(target_images, target_latent, extract_t = extract_t)
+            target_features = get_features(target_images, target_latent, extract_t = extract_t, noise_d=noise_d)
 
         if saving_features and not os.path.exists(os.path.join(target_output_path, str(extract_t) + '.npy')):
             os.makedirs(target_output_path, exist_ok=True)

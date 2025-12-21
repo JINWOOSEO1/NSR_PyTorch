@@ -35,9 +35,11 @@ Our method also supports various applications, such as shape co-segmentation, ke
 - [x] Release NSR-PyTorch code with pretrained model, environment setup guide, dataset preparation, and batch testing scripts
 - [x] Batch testing script for Objaverse dense matching  
 - [x] Batch testing script for ShapeNet co-segmentation  
+- [x] Single source-to-target semanic matching script
 - [x] Demo code for other backbones [NSR_LAS_PyTorch](https://github.com/mapledky/NSR_LAS_PyTorch).
-- [ ] Single source-to-target demo script  
-- [ ] Keypoint matching testing script  
+- [ ] Demo code for other backbones [NSR_SDF_PyTorch](https://github.com/mapledky/NSR_PyTorch).
+- [ ] Texture transfer testing script
+- [ ] Keypoint matching testing script for SHREC'19 & SHREC'20
 
 This repository is still under active development.  
 If you have any questions or issues, feel free to contact me at [Email](mailto:dukeyu@std.uestc.edu.cn).
@@ -192,6 +194,18 @@ Co-segmentation results can be found in the output directory and visualized into
 python shapenet_part/shapenet_part.py
 ```
 
+### **Single Semantic Matching**
+
+The script [semantic_match](semantic_match/semantic_s2t.py) demonstrates how to use NSR for semantic matching between a single source and target.
+
+Run the following command to perform semantic matching between the source and target models. Notice that you should pre-download TRELLIS-checkpoint and change the checkpoint root directory in the file and set the source and target model paths. You should specify the source semantic part to transfer via **point_choose**.
+
+Semantic match results can be found in the output directory and visualized into colored .ply files.
+
+```bash
+python semantic_match/semantic_s2t.py
+```
+
 ## 🔧 Additional Applications
 
 Once you obtain the dense correspondence results, you can leverage these mappings to create fine-grained correspondences from source to target models. This enables various downstream applications:
@@ -213,7 +227,12 @@ If you find this work helpful, please consider citing our paper:
     title   = {Hierarchical Neural Semantic Representation for 3D Semantic Correspondence},
     author  = {Keyu Du and Jingyu Hu and Haipeng Li and Hao Xu and Haibing Huang and Chi-Wing Fu and Shuaicheng Liu},
     journal = {SIGGRAPH ASIA},
-    year    = {2025}
+    year    = {2025},
+    isbn = {9798400721373},
+    publisher = {Association for Computing Machinery},
+    url = {https://doi.org/10.1145/3757377.3763921},
+    doi = {10.1145/3757377.3763921},
+    booktitle = {Proceedings of the SIGGRAPH Asia 2025 Conference Papers}
 }
 ```
 
