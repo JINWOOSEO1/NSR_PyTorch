@@ -35,7 +35,7 @@ Our method also supports various applications, such as shape co-segmentation, ke
 - [x] Release NSR-PyTorch code with pretrained model, environment setup guide, dataset preparation, and batch testing scripts
 - [x] Batch testing script for Objaverse dense matching  
 - [x] Batch testing script for ShapeNet co-segmentation  
-- [x] Single source-to-target semanic matching script
+- [x] Single testing script for source-to-target semantic matching
 - [x] Demo code for other backbones [NSR_LAS_PyTorch](https://github.com/mapledky/NSR_LAS_PyTorch).
 - [ ] Demo code for other backbones [NSR_SDF_PyTorch](https://github.com/mapledky/NSR_PyTorch).
 - [ ] Texture transfer testing script
