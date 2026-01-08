@@ -10,6 +10,11 @@ output/
 *.user
 *.userosscache
 *.sln.docstates
+*.png
+*.jpg
+*.ply
+pretrained_models/
+
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
