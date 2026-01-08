@@ -12,7 +12,21 @@ from collections import Counter
 
 def voxelize(file):
     model_mesh_path = os.path.join(file, 'renders/mesh.ply')
+    if not os.path.exists(model_mesh_path):
+        # Search for any .ply file in the directory if renders/mesh.ply doesn't exist
+        ply_files = [f for f in os.listdir(file) if f.endswith('.ply') and f != 'voxelize.ply']
+        if ply_files:
+            model_mesh_path = os.path.join(file, ply_files[0])
+            print(f"[*] Found mesh at: {model_mesh_path}")
+        else:
+            print(f"[!] Error: No .ply file found in {file}")
+            return
+
     mesh = o3d.io.read_triangle_mesh(model_mesh_path)
+    if mesh.is_empty():
+        print(f"[!] Error: Mesh is empty or could not be loaded: {model_mesh_path}")
+        return
+
     vertices = np.clip(np.asarray(mesh.vertices), -0.5 + 1e-6, 0.5 - 1e-6)
     mesh.vertices = o3d.utility.Vector3dVector(vertices)
     voxel_grid = o3d.geometry.VoxelGrid.create_from_triangle_mesh_within_bounds(mesh, voxel_size=1/64, min_bound=(-0.5, -0.5, -0.5), max_bound=(0.5, 0.5, 0.5))

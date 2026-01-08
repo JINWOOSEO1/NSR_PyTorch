@@ -26,7 +26,8 @@ def start_session(req: gr.Request):
     
 def end_session(req: gr.Request):
     user_dir = os.path.join(TMP_DIR, str(req.session_hash))
-    shutil.rmtree(user_dir)
+    if os.path.exists(user_dir):
+        shutil.rmtree(user_dir) 
 
 
 def preprocess_image(image: Image.Image) -> Image.Image:
@@ -227,7 +228,7 @@ def prepare_multi_example() -> List[Image.Image]:
     for case in multi_case:
         _images = []
         for i in range(1, 4):
-            img = Image.open(f'assets/example_multi_image/{case}_{i}.png')
+            img = Image.open(f'assets/example_multi_image/{case}/{case}_{i}.png')
             W, H = img.size
             img = img.resize((int(W / H * 512), 512))
             _images.append(np.array(img))
@@ -398,6 +399,7 @@ with gr.Blocks(delete_cache=(600, 600)) as demo:
 
 # Launch the Gradio app
 if __name__ == "__main__":
-    pipeline = TrellisImageTo3DPipeline.from_pretrained("microsoft/TRELLIS-image-large")
+    # pipeline = TrellisImageTo3DPipeline.from_pretrained("microsoft/TRELLIS-image-large")
+    pipeline = TrellisImageTo3DPipeline.from_pretrained("pretrained_models/TRELLIS-image-large")
     pipeline.cuda()
-    demo.launch()
+    demo.launch(server_name="0.0.0.0", server_port=7860, share=True)

@@ -1,7 +1,7 @@
 import torch
 import nvdiffrast.torch as dr
 from easydict import EasyDict as edict
-from ..representations.mesh import MeshExtractResult
+from ..representations.mesh.cube2mesh import MeshExtractResult
 import torch.nn.functional as F
 
 
@@ -9,6 +9,7 @@ def intrinsics_to_projection(
         intrinsics: torch.Tensor,
         near: float,
         far: float,
+        res: int
     ) -> torch.Tensor:
     """
     OpenCV intrinsics to OpenGL perspective matrix
@@ -23,13 +24,20 @@ def intrinsics_to_projection(
     fx, fy = intrinsics[0, 0], intrinsics[1, 1]
     cx, cy = intrinsics[0, 2], intrinsics[1, 2]
     ret = torch.zeros((4, 4), dtype=intrinsics.dtype, device=intrinsics.device)
-    ret[0, 0] = 2 * fx
-    ret[1, 1] = 2 * fy
-    ret[0, 2] = 2 * cx - 1
-    ret[1, 2] = - 2 * cy + 1
-    ret[2, 2] = far / (far - near)
-    ret[2, 3] = near * far / (near - far)
-    ret[3, 2] = 1.
+    # ret[0, 0] = 2 * fx
+    # ret[1, 1] = 2 * fy
+    # ret[0, 2] = 2 * cx - 1
+    # ret[1, 2] = - 2 * cy + 1
+    # ret[2, 2] = far / (far - near)
+    # ret[2, 3] = near * far / (near - far)
+    # ret[3, 2] = 1.
+    ret[0, 0] = 2.0 * fx / res
+    ret[1, 1] = - 2.0 * fy / res
+    ret[0, 2] = (2.0 * cx / res - 1.0)
+    ret[1, 2] = (2.0 * cy / res - 1.0)  # add negativity if it needed
+    ret[2, 2] = - (far + near) / (far - near)
+    ret[2, 3] = 2.0 * near * far / (near - far)
+    ret[3, 2] = - 1.0
     return ret
 
 
@@ -86,7 +94,7 @@ class MeshRenderer:
             ret_dict = {k : default_img if k in ['normal', 'normal_map', 'color'] else default_img[..., :1] for k in return_types}
             return ret_dict
         
-        perspective = intrinsics_to_projection(intrinsics, near, far)
+        perspective = intrinsics_to_projection(intrinsics, near, far, resolution)
         
         RT = extrinsics.unsqueeze(0)
         full_proj = (perspective @ extrinsics).unsqueeze(0)
@@ -96,6 +104,8 @@ class MeshRenderer:
         vertices_homo = torch.cat([vertices, torch.ones_like(vertices[..., :1])], dim=-1)
         vertices_camera = torch.bmm(vertices_homo, RT.transpose(-1, -2))
         vertices_clip = torch.bmm(vertices_homo, full_proj.transpose(-1, -2))
+        # render 함수 내부
+        print(f"Clip W range: {vertices_clip[..., 3].min().item()} ~ {vertices_clip[..., 3].max().item()}")
         faces_int = mesh.faces.int()
         rast, _ = dr.rasterize(
             self.glctx, vertices_clip, faces_int, (resolution * ssaa, resolution * ssaa))
