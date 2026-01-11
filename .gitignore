@@ -14,7 +14,7 @@ output/
 *.jpg
 *.ply
 pretrained_models/
-
+tmp/
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs

@@ -4,7 +4,7 @@ import utils3d
 import json
 from collections import Counter
 
-def voxelize(file):
+def voxelize(file, resolution=64):
     import subprocess
     import sys
     
@@ -14,6 +14,7 @@ import sys
 import numpy as np
 import traceback
 
+resolution = {resolution}
 sys.path.append(os.getcwd())
 
 try:
@@ -21,7 +22,7 @@ try:
     import utils3d
 
     file_path = os.path.abspath(r'{file}')
-    model_mesh_path = os.path.join(file_path, 'renders/mesh.ply')
+    model_mesh_path = os.path.join(file_path, 'source.ply')
     if not os.path.exists(model_mesh_path):
         ply_files = [f for f in os.listdir(file_path) if f.endswith('.ply') and f != 'voxelize.ply']
         if ply_files:
@@ -38,14 +39,14 @@ try:
     pcd = mesh.sample_points_uniformly(number_of_points=100000)
     
     points = np.asarray(pcd.points)
-    indices = np.floor((points + 0.5) * 64).astype(int)
-    indices = np.clip(indices, 0, 63)
+    indices = np.floor((points + 0.5) * resolution).astype(int)
+    indices = np.clip(indices, 0, resolution - 1)
     grid_indices = np.unique(indices, axis=0)
     
     if len(grid_indices) == 0:
         sys.exit(1)
         
-    final_vertices = (grid_indices.astype(float) + 0.5) / 64 - 0.5
+    final_vertices = (grid_indices.astype(float) + 0.5) / resolution - 0.5
     utils3d.io.write_ply(os.path.join(file_path, 'voxelize.ply'), final_vertices)
 
 except Exception as e:
@@ -78,7 +79,7 @@ def get_voxels(instance, resolution=64):
 def mesh_to_voxels(mesh_dir, resolution=64):
     input_dir = os.path.join(mesh_dir, "voxelize.ply")
     if not os.path.exists(input_dir):
-        voxelize(mesh_dir)
+        voxelize(mesh_dir, resolution)
 
     positions, ss = get_voxels(input_dir, resolution)
     return positions, ss

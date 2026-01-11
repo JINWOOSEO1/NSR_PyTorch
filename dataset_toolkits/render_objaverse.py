@@ -10,12 +10,21 @@ BLENDER_INSTALLATION_PATH = '/tmp'
 BLENDER_PATH = f'{BLENDER_INSTALLATION_PATH}/blender-3.0.1-linux-x64/blender'
 
 def _install_blender():
+    # Already install blender and its dependencies using conda
+    conda_prefix = os.environ.get('CONDA_PREFIX')
+    env = os.environ.copy()
+    if conda_prefix:
+        conda_lib_path = os.path.join(conda_prefix, 'lib')
+        current_ld_path = env.get('LD_LIBRARY_PATH', '')
+        env['LD_LIBRARY_PATH'] = f"{conda_lib_path}:{current_ld_path}"
+
     if not os.path.exists(BLENDER_PATH):
         os.system('sudo apt-get update')
         os.system('sudo apt-get install -y libxrender1 libxi6 libxkbcommon-x11-0 libsm6')
         os.system(f'wget {BLENDER_LINK} -P {BLENDER_INSTALLATION_PATH}')
         os.system(f'tar -xvf {BLENDER_INSTALLATION_PATH}/blender-3.0.1-linux-x64.tar.xz -C {BLENDER_INSTALLATION_PATH}')
 from fnmatch import fnmatch
+
 def _render(file_path, output_dir, num_views):
     yaws = []
     pitchs = []
@@ -42,7 +51,8 @@ def _render(file_path, output_dir, num_views):
     call(args, stdout=DEVNULL, stderr=DEVNULL)
 
 
-down_list = ['bicycle']
+
+down_list = ['cup', 'handbag']
 num_views = 5
 
 print('Checking blender...', flush=True)
@@ -50,18 +60,18 @@ _install_blender()
 
 for category in down_list:
     print(category)
-    obj_root_file = "dataset/Objaverse/" + category
+    obj_root_file = "datasets/Objaverse/" + category
     filter_list = None
-    pattern = "vis.glb"
+    pattern = "*.glb"
     render_obj_list = []
     for path, subdirs, files in os.walk(obj_root_file):
         for name in files:
             dir_name = path.split('/')[-1]
             if fnmatch(name, pattern):
-                id_name = path.split('/')[-1]
                 if os.path.exists(os.path.join(path, 'renders')):
                     continue
                 render_obj_list.append((path, name))
+    
 
     for idx, (path, name) in enumerate(render_obj_list):
         os.makedirs(os.path.join(path, 'renders'), exist_ok=True)

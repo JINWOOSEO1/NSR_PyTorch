@@ -5,6 +5,8 @@ import multiprocessing
 import argparse
 import numpy as np
 
+from daily_object import ply2img
+
 def process_glb_to_ply(uid, glb_path, save_path):
     try:
         loaded = trimesh.load(glb_path)
@@ -36,24 +38,27 @@ def main(arg):
     target_uids = []
     for uid in lvis_annotations[target_category]:
         target_uids.append(uid)
-        if len(target_uids) >= arg.num_objects:
-            break
     
     objects = objaverse.load_objects(uids=target_uids)
 
-    cnt = 1
-    output_dir = "./target_file/" if arg.is_target else "./source_file/"
+    save_path = "./target_file/target.ply" if arg.is_target else "./source_file/source.ply"
+    cnt=0
     for uid, glb_path in objects.items():
-        save_path = os.path.join(output_dir, f"{arg.object}_{cnt}.ply")
+        if cnt<15:
+            cnt=cnt+1
+            continue
         process_glb_to_ply(uid, glb_path, save_path)
-        cnt += 1
+        break
+    img_save_path = "./target_file/renders" if arg.is_target else "./source_file/renders"
+    arg.mesh_path = img_save_path
+    arg.resolution = 512
+    arg.num_views = 10
+    ply2img.generate_renders_robust(arg)
 
 if __name__ == "__main__":
     multiprocessing.set_start_method("spawn", force=True)
     arg = argparse.ArgumentParser()
     arg.add_argument('--is_target', action='store_true', help='If set, output directory is target_file/')
     arg.add_argument('--object', type=str, default='mug', help='Target object category')
-    arg.add_argument('--num_objects', type=int, default=5, help='Number of objects to process')
     args = arg.parse_args()
-
     main(args)
