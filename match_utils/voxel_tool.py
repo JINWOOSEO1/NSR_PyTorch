@@ -6,7 +6,7 @@ def voxel_feature_cos_min(occupy_voxels, target_feature, choose_feature, index_s
     target_feature = target_feature.to('cpu').squeeze(0)
     choose_feature = choose_feature.to('cpu')
 
-    grid_index = occupy_voxels // index_scale# vertex_num, 3
+    grid_index = occupy_voxels // index_scale # vertex_num, 3
 
     occupy_grid_index = np.unique(grid_index, axis=0)
 

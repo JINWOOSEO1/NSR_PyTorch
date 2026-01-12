@@ -35,24 +35,21 @@ def main(arg):
     lvis_annotations = objaverse.load_lvis_annotations()
 
     target_category = arg.object
-    target_uids = []
-    for uid in lvis_annotations[target_category]:
-        target_uids.append(uid)
+    category_uids = lvis_annotations[target_category]
+    
+    print(f"There are {len(category_uids)} objects in the category: {target_category}")
+    select_index = 15 if len(category_uids) > 15 else 0 # cup: 15, bag: 0
+    target_uids = [category_uids[select_index]]
     
     objects = objaverse.load_objects(uids=target_uids)
 
     save_path = "./target_file/target.ply" if arg.is_target else "./source_file/source.ply"
-    cnt=0
     for uid, glb_path in objects.items():
-        if cnt<15:
-            cnt=cnt+1
-            continue
         process_glb_to_ply(uid, glb_path, save_path)
         break
     img_save_path = "./target_file/renders" if arg.is_target else "./source_file/renders"
     arg.mesh_path = img_save_path
     arg.resolution = 512
-    arg.num_views = 10
     ply2img.generate_renders_robust(arg)
 
 if __name__ == "__main__":
@@ -60,5 +57,6 @@ if __name__ == "__main__":
     arg = argparse.ArgumentParser()
     arg.add_argument('--is_target', action='store_true', help='If set, output directory is target_file/')
     arg.add_argument('--object', type=str, default='mug', help='Target object category')
+    arg.add_argument('--num_views', type=int, default=10, help='Number of views to render')
     args = arg.parse_args()
     main(args)

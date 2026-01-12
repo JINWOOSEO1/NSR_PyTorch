@@ -5,6 +5,10 @@ os.environ['SPCONV_ALGO'] = 'native'        # Can be 'native' or 'auto', default
 from PIL import Image
 import torch as th
 from datetime import datetime
+import matplotlib.pyplot as plt
+from matplotlib import cm
+import json
+
 from trellis.pipelines import TrellisImageTo3DPipeline
 import trellis.models as models
 
@@ -25,18 +29,27 @@ source_dir = 'source_file'
 target_dir = 'target_file'
 
 #the chosen point on the source ply file
-point_choose = [0.4, 0.15, 0.075]
+# load key points
+key_points_path = os.path.join(source_dir, 'selected_keypoints.json')
+if os.path.exists(key_points_path):
+    print(f"Loading keypoints from {key_points_path}")
+    with open(key_points_path, 'r') as f:
+        point_choose = json.load(f)
+else:
+    print("There is no keypoint file. Please run keypoint_selector.py first")
+    exit()
+M = len(point_choose) # number of chosen points   
+key_points_color = [cm.hsv(i / M)[:3] for i in range(M)]
+chosen_voxels = []
 
 output_root_path = os.path.join('output/semantic_match/')
-
 current_time = datetime.now()
 formatted_time = current_time.strftime("%m-%d-%H-%M")
+output_root_path = os.path.join(output_root_path, formatted_time)
 
 coarse_resolution = 16
 coarse_total_steps = 12
 scale_arr = [4, 2, 1]
-
-output_root_path = os.path.join(output_root_path, formatted_time)
 
 from match_utils.tools import mesh_to_voxels, feature_down_sample, feature_to_3d
 import numpy as np
@@ -83,17 +96,17 @@ _, source_latent = get_input(source_dir, coarse_resolution * 4)
 from match_utils.tools import label_voxels_with_colormap, color_ply_with_colormap
 
 source_position_coords, source_occupy_voxels_origin, source_voxel_colormap, source_colormap = label_voxels_with_colormap(source_dir, resolution = coarse_resolution * 4)
-
-distances = np.linalg.norm(np.array(source_position_coords) - np.array(point_choose), axis = 1)
-chosen_index = np.argmin(distances) # voxel index(64) that include the chosen point
 source_occupy_voxels = source_occupy_voxels_origin // 4
-choose_voxel = source_occupy_voxels_origin[chosen_index] // 4
 
-chosen_voxel_index = np.where((source_occupy_voxels == choose_voxel).all(axis = 1))[0] # voxel indices(64) which have same voxel index(16)
+colormap = np.ones_like(source_colormap) * 0.7
+for p_idx in range(M):
+    distance = np.linalg.norm(source_position_coords - point_choose[p_idx], axis=1)
+    chosen_index = np.argmin(distance)
+    choose_voxel = source_occupy_voxels[chosen_index]
+    chosen_voxels.append(choose_voxel)
+    chosen_voxel_index = np.where((source_occupy_voxels == choose_voxel).all(axis = 1))[0]
+    colormap[chosen_voxel_index] = key_points_color[p_idx]
 
-#colormap = np.zeros_like(source_colormap)
-colormap = source_colormap.copy()
-colormap[chosen_voxel_index] = [0,0,0]
 color_ply_with_colormap(source_position_coords, colormap, os.path.join(output_root_path), name='colored_source.ply')
 
 render_num = 10  
@@ -123,20 +136,19 @@ import importlib
 importlib.reload(match_utils.voxel_tool)
 from match_utils.voxel_tool import voxel_feature_cos_min, voxel_feature_cos_min_coarse_based
 
-global_choose_voxel = choose_voxel // scale_arr[0]
-global_source_feature = source_features_flat_scale_arr[0][0, : , global_choose_voxel[0], global_choose_voxel[1], global_choose_voxel[2]]
-target_source_coarse_mapping = voxel_feature_cos_min(target_occupy_voxels, target_features_flat_scale_arr[0], global_source_feature, scale_arr[0])
-print(target_source_coarse_mapping[0])
-
-for down_idx, down_scale in enumerate(scale_arr):
-    if down_idx == 0:continue
-    local_choose_voxel = choose_voxel // down_scale
-    local_source_feature = source_features_flat_scale_arr[down_idx][0, : , local_choose_voxel[0], local_choose_voxel[1], local_choose_voxel[2]]
-    target_source_coarse_mapping = voxel_feature_cos_min_coarse_based(target_occupy_voxels, target_features_flat_scale_arr[down_idx], local_source_feature, down_scale,  target_source_coarse_mapping[0], scale_arr[down_idx - 1] // down_scale)
-    print(target_source_coarse_mapping[0])
-    
-target_map_index = np.where(((target_occupy_voxels // down_scale) == target_source_coarse_mapping[0]).all(axis = 1))[0]
 target_colormap = np.ones((len(target_occupy_voxels), 3))*0.7
-target_colormap[target_map_index] = [1, 0, 0]
+for v_idx in range(M):
+    global_choose_voxel = chosen_voxels[v_idx] // scale_arr[0]
+    global_source_feature = source_features_flat_scale_arr[0][0, : , global_choose_voxel[0], global_choose_voxel[1], global_choose_voxel[2]]
+    target_source_coarse_mapping = voxel_feature_cos_min(target_occupy_voxels, target_features_flat_scale_arr[0], global_source_feature, scale_arr[0])
+
+    for down_idx, down_scale in enumerate(scale_arr):
+        if down_idx == 0:continue
+        local_choose_voxel = chosen_voxels[v_idx] // down_scale
+        local_source_feature = source_features_flat_scale_arr[down_idx][0, : , local_choose_voxel[0], local_choose_voxel[1], local_choose_voxel[2]]
+        target_source_coarse_mapping = voxel_feature_cos_min_coarse_based(target_occupy_voxels, target_features_flat_scale_arr[down_idx], local_source_feature, down_scale,  target_source_coarse_mapping[0], scale_arr[down_idx - 1] // down_scale)
+    
+    target_map_index = np.where(((target_occupy_voxels // down_scale) == target_source_coarse_mapping[0]).all(axis = 1))[0]
+    target_colormap[target_map_index] = key_points_color[v_idx]
 color_ply_with_colormap(target_positions, target_colormap, output_root_path, name=str(extract_t) +'_' + str(extract_l) + '_' + str(down_scale)+'.ply')
 
