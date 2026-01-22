@@ -36,6 +36,7 @@ def radical_inverse(base, n):
         n //= base
         inv_base_n *= inv_base
     return val
+
 def halton_sequence(dim, n):
     return [radical_inverse(PRIMES[dim], n) for dim in range(dim)]
 
@@ -95,16 +96,17 @@ def generate_renders_robust(args):
     ], device=device).float()
 
     target = torch.tensor([0, 0, 0], device=device).float()
-    up = torch.tensor([0, 1, 0], device=device).float()
+    up = torch.tensor([0, 0, 1], device=device).float()
     radius = 2.0 # distance from camera to target in xy plane
     
     success_count = 0
     
     for i in range(args.num_views):
-        phi, theta = sphere_hammersley_sequence(i, args.num_views)
+        offset = (np.random.rand(), np.random.rand())
+        phi, theta = sphere_hammersley_sequence(i, args.num_views, offset)
         eye_x = radius * np.cos(theta) * np.sin(phi)
-        eye_y = radius * np.sin(theta)
-        eye_z = radius * np.cos(theta) * np.cos(phi)
+        eye_y = - radius * np.cos(theta) * np.cos(phi)
+        eye_z = radius * np.sin(theta)
         
         eye_pos = np.array([eye_x, eye_y, eye_z])
         eye = torch.from_numpy(eye_pos).float().to(device)

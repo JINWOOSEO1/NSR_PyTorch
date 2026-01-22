@@ -8,9 +8,11 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 from matplotlib import cm
 import json
+import time
 
 from trellis.pipelines import TrellisImageTo3DPipeline
 import trellis.models as models
+from daily_object.visualize_ply import visualization
 
 
 # best extract_t and extract_l for ShapeNetCorev2 co-segmentation
@@ -94,6 +96,7 @@ source_image_dir = os.path.join(source_dir, 'renders')
 _, source_latent = get_input(source_dir, coarse_resolution * 4)
 
 from match_utils.tools import label_voxels_with_colormap, color_ply_with_colormap
+start_time = time.time()
 
 source_position_coords, source_occupy_voxels_origin, source_voxel_colormap, source_colormap = label_voxels_with_colormap(source_dir, resolution = coarse_resolution * 4)
 source_occupy_voxels = source_occupy_voxels_origin // 4
@@ -150,5 +153,29 @@ for v_idx in range(M):
     
     target_map_index = np.where(((target_occupy_voxels // down_scale) == target_source_coarse_mapping[0]).all(axis = 1))[0]
     target_colormap[target_map_index] = key_points_color[v_idx]
-color_ply_with_colormap(target_positions, target_colormap, output_root_path, name=str(extract_t) +'_' + str(extract_l) + '_' + str(down_scale)+'.ply')
+output_name = str(extract_t) +'_' + str(extract_l) + '_' + str(down_scale)+'.ply'
+color_ply_with_colormap(target_positions, target_colormap, output_root_path, name=output_name)
+# Write experiment info to info.txt
+info_path = os.path.join(output_root_path, 'info.txt')
+try:
+    with open(os.path.join(source_dir, 'info.json')) as f:
+        source_info = json.load(f)
+    with open(os.path.join(target_dir, 'info.json')) as f:
+        target_info = json.load(f)
+except FileNotFoundError as e:
+    print(f"Cannot find json file: {e}")
+    source_info = {"category": 'unknown', "index": 'unknown'}
+    target_info = {"category": 'unknown', "index": 'unknown'}
+    
+with open(info_path, 'w') as f:
+    f.write(f"Script: {os.path.basename(__file__)}\n")
+    f.write(f"The number of views: {render_num}\n")
+    f.write(f"Source object: {source_info['category']}_{source_info['index']}\n")
+    f.write(f"Target object: {target_info['category']}_{target_info['index']}\n")
+    f.write(f"Extract time: {extract_t}\n")
+    f.write(f"Noise D: {noise_d}\n")
+    f.write(f"Keypoint: {point_choose}\n")
+
+print(f"Total time: {time.time() - start_time}")
+visualization(os.path.join(output_root_path, output_name))
 

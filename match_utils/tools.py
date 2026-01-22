@@ -3,6 +3,8 @@ import numpy as np
 import utils3d
 import json
 from collections import Counter
+import trimesh
+from scipy.spatial import cKDTree
 
 def voxelize(file, resolution=64):
     import subprocess
@@ -240,6 +242,31 @@ color_map = np.array([
     [99/255, 227/255, 152/255],
     [157/255, 195/255, 231/255]
 ])
+def create_distinct_colormap(voxels, method='hsv'):
+    import matplotlib.colors as mcolors
+    
+    voxels = np.asarray(voxels)
+    min_vals = voxels.min(axis=0)
+    max_vals = voxels.max(axis=0)
+    
+    # 1. Normalize to [0, 1]
+    normed = (voxels - min_vals) / (max_vals - min_vals + 1e-8)
+    
+    if method == 'sinusoidal':
+        freq = 1.0 
+        final_color = 0.5 + 0.5 * np.sin(np.pi * freq * normed)
+    elif method == 'hsv':
+        h = (normed[:, 0] * 0.5 + normed[:, 1] * 0.3 + normed[:, 2] * 0.2) % 1.0
+        s = 0.7 + 0.3 * normed[:, 1] 
+        v = 0.8 + 0.2 * normed[:, 2]
+        
+        hsv = np.stack([h, s, v], axis=1)
+        final_color = mcolors.hsv_to_rgb(hsv)
+    else:
+        raise ValueError("Unknown method")
+
+    colormap_dict = {tuple(voxels[i]): tuple(final_color[i]) for i in range(len(voxels))}
+    return colormap_dict, final_color
 
 def hex_to_rgb(hex_color):
     hex_color = hex_color.lstrip('#')
@@ -253,10 +280,11 @@ def create_spatial_colormap(voxels,
     min_vals = voxels.min(axis=0)
     max_vals = voxels.max(axis=0)
     normed = (voxels - min_vals) / (max_vals - min_vals + 1e-8)
-    color_x = (1 - normed[:, 0, None]) * hex_to_rgb(start_x) + normed[:, 0, None] * hex_to_rgb(end_x)
-    color_y = (1 - normed[:, 1, None]) * hex_to_rgb(start_y) + normed[:, 1, None] * hex_to_rgb(end_y)
-    color_z = (1 - normed[:, 2, None]) * hex_to_rgb(start_z) + normed[:, 2, None] * hex_to_rgb(end_z)
-    final_color = (color_x + color_y + color_z) / 3.0
+    # color_x = (1 - normed[:, 0, None]) * hex_to_rgb(start_x) + normed[:, 0, None] * hex_to_rgb(end_x)
+    # color_y = (1 - normed[:, 1, None]) * hex_to_rgb(start_y) + normed[:, 1, None] * hex_to_rgb(end_y)
+    # color_z = (1 - normed[:, 2, None]) * hex_to_rgb(start_z) + normed[:, 2, None] * hex_to_rgb(end_z)
+    # final_color = (color_x + color_y + color_z) / 3.0
+    final_color = 0.55 + 0.45 * normed
     colormap_dict = {tuple(voxels[i]): tuple(final_color[i]) for i in range(len(voxels))}
     return colormap_dict, final_color
 
@@ -264,7 +292,7 @@ def label_voxels_with_colormap(mesh_dir, resolution = 64):
     import torch
     positions = utils3d.io.read_ply(os.path.join(mesh_dir, 'voxelize.ply'))[0]
     coords = ((torch.tensor(positions) + 0.5) * resolution).int().contiguous()
-    colormap_dict, final_color = create_spatial_colormap(coords.numpy())
+    colormap_dict, final_color = create_distinct_colormap(coords.numpy())
     return positions, coords, colormap_dict, final_color
 
 def upsample_voxel_mapping(
@@ -354,3 +382,28 @@ def caculate_voxels_IOU_labels(occupy_voxels, gt_labels_path, predict_labels):
         total_iou += label_ratio * iou
     mean_iou = total_iou
     return mean_iou
+
+# added function for visualization
+def color_original_mesh_smooth(mesh_path, colormap_dict, output_path, resolution=16, k=8):
+    mesh = trimesh.load(mesh_path, process=False)
+    vertices = mesh.vertices
+    voxel_coords = np.array(list(colormap_dict.keys())) # (N_voxels, 3), 0~15
+    voxel_colors = np.array(list(colormap_dict.values())) # (N_voxels, 3)
+    voxel_positions = (voxel_coords + 0.5) / resolution -0.5 # -0.5 ~ 0.5
+
+    tree = cKDTree(voxel_positions)
+    dists, idxs = tree.query(vertices, k=k) # (Trilinear와 유사 효과)
+    weights = 1.0 / (dists + 1e-8)
+    
+    weights_sum = weights.sum(axis=1, keepdims=True)
+    weights = weights / weights_sum
+    vertex_colors = np.sum(weights[:, :, None] * voxel_colors[idxs], axis=1)  # (N_vertex, k, 1) * (N_vertex, k, 3) -> Sum -> (N_vertex, 3)
+
+    if vertex_colors.max() <= 1.0:
+        mesh.visual.vertex_colors = (vertex_colors * 255).astype(np.uint8)
+    else:
+        mesh.visual.vertex_colors = vertex_colors.astype(np.uint8)
+
+    mesh.export(output_path)
+    print(f"Saved colored mesh to {output_path}")
+    return True

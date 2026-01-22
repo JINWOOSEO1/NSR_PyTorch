@@ -5,7 +5,7 @@ import open3d as o3d
 import numpy as np
 import trimesh
 
-def main(mesh_path):
+def visualization(mesh_path):
     try:
         mesh = trimesh.load(mesh_path)
     except Exception as e:
@@ -19,6 +19,8 @@ def main(mesh_path):
         server.add_mesh_trimesh(
             "/my_mesh",
             mesh=mesh,
+            cast_shadow=False,
+            receive_shadow=False,
         )
     elif hasattr(mesh, 'vertices'): # Pointcloud
         points = mesh.vertices
@@ -37,11 +39,11 @@ def main(mesh_path):
         print("Error: The loaded object has neither faces nor vertices.")
 
     while True:
-        time.sleep(1)  
+        time.sleep(1)
 
 if __name__ == "__main__":
     arg = argparse.ArgumentParser()
     arg.add_argument('--mesh_path', default='source_file/source.ply',type=str, required=True, help='Path to the PLY mesh file')
     arg = arg.parse_args()
     
-    main(arg.mesh_path)  
+    visualization(arg.mesh_path)  

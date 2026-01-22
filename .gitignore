@@ -15,6 +15,9 @@ output/
 *.ply
 pretrained_models/
 tmp/
+source_file/
+target_file/
+
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
